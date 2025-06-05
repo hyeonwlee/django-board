@@ -1,0 +1,3 @@
+2025-spring, sogang-2-1
+CNU Django 기본 참여형 스터디
+jump2django 교재 순행 프로그램

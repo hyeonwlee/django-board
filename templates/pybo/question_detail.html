@@ -1,0 +1,217 @@
+{% extends 'base.html' %}
+{% load pybo_filter %}
+{% block content %}
+<div class="container my-3">
+    <!-- 메시지 표시 -->
+     {% if messages %}
+    <div class="alert alert-danger my-3" role="alert">
+        {% for message in messages %}
+            <strong>{{ message.tags }}</strong>
+            <ul><li>{{ message.message }}</li></ul>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+
+<!-- 질문 -->
+<h2 class="border-bottom py-2">{{ question.subject }}</h2>
+<div class="card my-3">
+    <div class="card-body">
+        <div class="card-text" style="white-space: pre-line;">{{ question.content|mark }}</div>
+        <div class="d-flex justify-content-end">
+            {% if question.modify_date %}
+            <div class="badge bg-light text-dark p-2 text-start mx-3">
+                <div class="mb-2">modified at</div>
+                <div>{{ question.modify_date }}</div>
+            </div>
+            {% endif %}
+            <div class="badgebg-lighttext-darkp-2 text-start">
+                <div class="mb-2">{{ question.author.username }}</div>
+                <div>{{question.create_date }}</div>
+            </div>
+        </div>
+        <div class="my-3">
+            <a href="javascript:void(0)" data-uri="{% url 'pybo:question_vote' question.id %}"
+                class="recommend btn btn-sm btn-outline-secondary">추천
+                <span class="badge rounded-pill bg-success">{{ question.voter.count }}</span>
+            </a>
+            {% if request.user == question.author %}
+            <a href="{% url 'pybo:question_modify' question.id %}"
+                class="btn btn-sm btn-outline-secondary">수정</a>
+            <a href="javascript:void(0)" class="delete btn btn-sm btn-outline-secondary"
+                data-uri="{% url 'pybo:question_delete' question.id %}">삭제</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- 답변 -->
+<h5 class="border-bottom my-3 py-2 d-flex justify-content-between align-items-center">
+  <span>{{ question.answer_set.count }}개의 답변이 있습니다.</span>
+
+  <span>
+    <a href="?sort=date{% if request.GET.page %}&page={{ request.GET.page }}{% endif %}" 
+        class="btn btn-sm btn-outline-secondary"
+        {% if sort == 'date' %}style="color: #000;"{% endif %}>최신순</a> 
+    <a href="?sort=voter{% if request.GET.page %}&page={{ request.GET.page }}{% endif %}" 
+        class="btn btn-sm btn-outline-secondary"
+        {% if sort == 'voter' %}style="color: #000;"{% endif %}>추천순</a>
+  </span>
+
+</h5>
+
+{% if answer_list %}
+{% for answer in answer_list %}
+<a id="answer_{{ answer.id }}"></a>
+<div class="card my-3">
+    <div class="card-body">
+        <div class="card-text" style="white-space: pre-line;">{{ answer.content|mark }}</div>
+        <div class="d-flex justify-content-end">
+            {% if answer.modify_date %}
+            <div class="badge bg-light text-dark p-2 text-start mx-3">
+                <div class="mb-2">modified at</div>
+                <div>{{ answer.modify_date }}</div>
+            </div>
+            {% endif %}
+            <div class="badge bg-light text-dark p-2 text-start">
+                <div class="mb-2">{{ answer.author.username }}</div>
+                <div>{{ answer.create_date }}</div>
+            </div>
+        </div>
+        <div class="my-3">
+            <a href="javascript:void(0)" data-uri="{% url 'pybo:answer_vote' answer.id %}"
+                class="recommend btn btn-sm btn-outline-secondary">추천<span class="badge rounded-pill bg-success">{{ answer.voter.count }}
+                </span>
+            </a>
+            {% if request.user == answer.author %}
+            <a href="{% url 'pybo:answer_modify' answer.id %}"
+                class="btn btn-sm btn-outline-secondary">수정</a>
+            <a href="#" class="delete btn btn-sm btn-outline-secondary " data-uri="{% url 'pybo:answer_delete' answer.id %}">삭제</a>
+            {% endif %}
+            <button class="btn btn-sm btn-outline-secondary " type="button" data-answer-id="{{ answer.id }}" onclick="toggleComments({{ answer.id }})">댓글</button>
+        </div>
+    </div>
+</div>
+<!-- 댓글 목록 영역 -->
+<div id="answer-comment-box-{{ answer.id }}" class="mt-2" style="display: none;">
+    {% for comment in answer.answer_comment.all %}
+    <div class="mb-2 border-bottom">
+        <p class="mb-1">{{ comment.content }}</p>
+        <small>{{ comment.author.username }} / {{ comment.create_date }}</small>
+    </div>
+    {% empty %}
+    <p>댓글이 없습니다.</p>
+    {% endfor %}
+
+    <form action="{% url 'pybo:answer_comment_create' answer.id %}" method="post">
+        {% csrf_token %}
+        <div class="mb-3">
+            <label for="comment" class="form-label">댓글</label>
+            <textarea id="comment" name="content" class="form-control" rows="2" required></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">댓글 등록</button>
+    </form>
+    
+</div>
+<!-- 댓글 영역 끝 -->
+{% endfor %}
+{% else %}
+    <tr>
+        <td colspan="4">질문이 없습니다.</td>
+    </tr>
+{% endif %}
+
+<!-- 답변 페이징처리 시작 -->
+<ul class="pagination justify-content-center">
+    <!-- 이전페이지 -->
+    {% if answer_list.has_previous %}
+    <li class="page_item">
+        <a class="page-link" href="?page={{ answer_list.previous_page_number }}">이전</a>
+    </li>
+    {% else %}
+    <li class="page-item disbled">
+        <a class="page-link" tabindex="-1" aria-disabled="true" href="#">이전</a>
+    </li>
+    {% endif %}
+    <!-- 페이지리스트 -->
+    {% for page_number in answer_list.paginator.page_range %}
+    {% if page_number == answer_list.number %}
+    <li class="page-item active" aria-current="page">
+        <a class="page-link" href="?page={{ page_number }}">{{ page_number }}</a>
+    </li>
+    {% else %}
+    <li class="page-item">
+        <a class="page-link" href="?page={{ page_number }}">{{ page_number }}</a>
+    </li>
+    {% endif %}
+    {% endfor %}
+    <!-- 다음페이지 -->
+    {% if answer_list.has_next %}
+    <li class="page-item">
+        <a class="page-link" href="?page={{ question_list.next_page_number }}">다음</a>
+    </li>
+    {% else %}
+    <li class="page-item disabled">
+        <a class="page-link" tabindex="-1" aria-disabled="true" href="#">다음</a>
+    </li>
+    {% endif %}
+</ul>
+<!-- 답변 페이징처리 끝 -->
+
+<form action="{% url 'pybo:answer_create' question.id %}" method="post" class="my-3">
+    {% csrf_token %}
+    {% if form.errors %}
+    <div class="alert alert-danger" role="alert">
+        {% for field in form %}
+        {% if field.errors %}
+        <div>
+            <strong>{{ field.label }}</strong>
+            {{ field.errors }}
+        </div>
+        {% endif %}
+        {% endfor %}
+    </div>
+    {% endif %}
+    <div class="mb-3">
+        <label for="content" class="form-label">답변내용</label>
+        <textarea {% if not user.is_authenticated %}disabled{% endif %} 
+                    name="content" id="content" class="form-control" rows="10"></textarea>
+    </div>
+    <input type="submit" value="답변등록" class="bin btn-primary">
+</form>
+</div>
+
+
+{% endblock %}
+{% block script %}
+<script type="text/javascript">
+    const delete_elements = document.getElementsByClassName("delete");
+    Array.from(delete_elements).forEach(function(element){
+        element.addEventListener('click', function(){
+            if(confirm("정말로 삭제하시겠습니까?")){
+                location.href = this.dataset.uri;
+            };
+        });
+    });
+    const recommend_elements = document.getElementsByClassName("recommend");
+    Array.from(recommend_elements).forEach(function(element){
+        element.addEventListener('click', function(){
+            if(confirm("정말로 추천하시겠습니까?")){
+                location.href = this.dataset.uri;
+            };
+        });
+    });
+</script>
+
+<script>
+    function toggleComments(answerId){
+        const commentBox = document.getElementById(`answer-comment-box-${answerId}`);
+        if(commentBox.style.display === 'none' || commentBox.style.display === ''){
+            commentBox.style.display = 'block';
+        }
+        else {
+            commentBox.style.display = 'none';
+        }
+    }
+</script>
+{% endblock %}
