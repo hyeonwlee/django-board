@@ -41,8 +41,6 @@ def detail(request, question_id):
     paginator = Paginator(answer_list, 5)
     page_obj = paginator.get_page(page)
 
-    # 답변에 달린 댓글
-
     context = {
         'question': question,
         'answer_list': page_obj,
